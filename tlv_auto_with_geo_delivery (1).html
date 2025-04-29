@@ -1,0 +1,2667 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>TLV Auto – Калькулятор логистики и Инвойс</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f2f2f2; padding: 20px; }
+    .container { background: white; max-width: 1000px; margin: auto; padding: 30px; border-radius: 10px; }
+    select, input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 6px; border: 1px solid #ccc; }
+    button { background: #00B97C; color: white; padding: 12px; width: 100%; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+    #invoice { margin-top: 30px; background: #fff; padding: 20px; border-radius: 10px; border: 1px solid #ccc; }
+    
+    @media screen and (max-width: 600px) {
+      .container {
+        padding: 15px;
+      }
+      select, input, button {
+        font-size: 16px;
+      }
+    }
+    @media print {
+     body * { visibility: hidden; } #invoice, #invoice * { visibility: visible; } #invoice { position: absolute; top: 0; left: 0; width: 100%; } }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2>TLV Auto – Калькулятор логистики</h2>
+
+  <select id="auction" onchange="updateLocations()">
+    <option value="">Выберите аукцион</option>
+    <option value="COPART">Copart</option>
+    <option value="IAAI">IAAI</option>
+  </select>
+
+  <select id="location">
+    <option value="">Выберите стоянку</option>
+  </select>
+
+  <select id="type">
+    <option value="sedan">Седан</option>
+    <option value="medium">Средняя</option>
+    <option value="large">Большая</option>
+  </select>
+
+  <input type="text" id="vin" placeholder="VIN код">
+  <input type="number" id="carPrice" placeholder="Цена авто с аукционом">
+  <input type="number" id="deposit" placeholder="Депозит">
+  
+    <label for="hybridSwitch">Машина гибрид или электрокар?</label>
+    <select id="hybridSwitch">
+      <option value="no">Нет</option>
+      <option value="yes">Да</option>
+    </select>
+    
+  
+    <label for="kyrgyzSwitch">Доставка Грузия → Кыргызстан?</label>
+    <select id="kyrgyzSwitch">
+      <option value="no">Нет</option>
+      <option value="yes">Да</option>
+    </select>
+    
+
+  <button onclick="generateInvoice()">Сгенерировать и Сохранить</button>
+  <button onclick="window.print()">🖨️ Распечатать</button>
+
+  <div id="invoice"></div>
+</div>
+
+<script>
+const logistics = {
+  "COPART": {
+    "ABILENE - Texas - Copart": {
+      "sedan": 1750.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "HOUSTON"
+    },
+    "ADELANTO - California - Copart": {
+      "sedan": 2225.0,
+      "medium": 2375.0,
+      "large": 2625.0,
+      "port": "LOS ANGELES"
+    },
+    "ADP TOWING MAUI - Hawaii - Copart": {
+      "sedan": 4175.0,
+      "medium": 4325.0,
+      "large": 4575.0,
+      "port": "LOS ANGELES"
+    },
+    "AKRON - Ohio - Copart": {
+      "sedan": 1775.0,
+      "medium": 1925.0,
+      "large": 2175.0,
+      "port": "NORFOLK"
+    },
+    "ALBANY - New York - Copart": {
+      "sedan": 1575.0,
+      "medium": 1725.0,
+      "large": 1975.0,
+      "port": "NEWARK"
+    },
+    "ALBUQUERQUE - New Mexico - Copart": {
+      "sedan": 2000.0,
+      "medium": 2150.0,
+      "large": 2400.0,
+      "port": "HOUSTON"
+    },
+    "ALTOONA - Pennsylvania - Copart": {
+      "sedan": 1750.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "NEWARK"
+    },
+    "AMARILLO - Texas - Copart": {
+      "sedan": 1925.0,
+      "medium": 2075.0,
+      "large": 2325.0,
+      "port": "HOUSTON"
+    },
+    "ANDREWS - Texas - Copart": {
+      "sedan": 1825.0,
+      "medium": 1975.0,
+      "large": 2225.0,
+      "port": "HOUSTON"
+    },
+    "ANTELOPE - California - Copart": {
+      "sedan": 2325.0,
+      "medium": 2475.0,
+      "large": 2725.0,
+      "port": "LOS ANGELES"
+    },
+    "APPLETON - Wisconsin - Copart": {
+      "sedan": 1800.0,
+      "medium": 1975.0,
+      "large": 2225.0,
+      "port": "CHICAGO"
+    },
+    "ATLANTA EAST - Georgia - Copart": {
+      "sedan": 1475.0,
+      "medium": 1625.0,
+      "large": 1875.0,
+      "port": "SAVANNAH"
+    },
+    "ATLANTA NORTH - Georgia - Copart": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "SAVANNAH"
+    },
+    "ATLANTA SOUTH - Georgia - Copart": {
+      "sedan": 1475.0,
+      "medium": 1625.0,
+      "large": 1875.0,
+      "port": "SAVANNAH"
+    },
+    "ATLANTA WEST - Georgia - Copart": {
+      "sedan": 1475.0,
+      "medium": 1625.0,
+      "large": 1875.0,
+      "port": "SAVANNAH"
+    },
+    "Augusta - Georgia - Copart": {
+      "sedan": 1450.0,
+      "medium": 1600.0,
+      "large": 1850.0,
+      "port": "SAVANNAH"
+    },
+    "AUSTIN - Texas - Copart": {
+      "sedan": 1650.0,
+      "medium": 1800.0,
+      "large": 2050.0,
+      "port": "HOUSTON"
+    },
+    "BAKERSFIELD - California - Copart": {
+      "sedan": 2275.0,
+      "medium": 2425.0,
+      "large": 2675.0,
+      "port": "LOS ANGELES"
+    },
+    "BALTIMORE - Maryland - Copart": {
+      "sedan": 1550.0,
+      "medium": 1700.0,
+      "large": 1950.0,
+      "port": "NORFOLK"
+    },
+    "BALTIMORE EAST - Maryland - Copart": {
+      "sedan": 1550.0,
+      "medium": 1700.0,
+      "large": 1950.0,
+      "port": "NORFOLK"
+    },
+    "BATON ROUGE - Louisiana - Copart": {
+      "sedan": 1750.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "HOUSTON"
+    },
+    "BILLINGS - Montana - Copart": {
+      "sedan": 2600.0,
+      "medium": 2800.0,
+      "large": 3000.0,
+      "port": "SEATTLE"
+    },
+    "BIRMINGHAM - Alabama - Copart": {
+      "sedan": 1550.0,
+      "medium": 1700.0,
+      "large": 1950.0,
+      "port": "SAVANNAH"
+    },
+    "BOISE - Idaho - Copart": {
+      "sedan": 2200.0,
+      "medium": 2400.0,
+      "large": 2600.0,
+      "port": "SEATTLE"
+    },
+    "Buffalo - New York - Copart": {
+      "sedan": 1800.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "NEWARK"
+    },
+    "CALGARY - Alberta - Copart": {
+      "sedan": 3000.0,
+      "medium": 3150.0,
+      "large": 3400.0,
+      "port": "TORONTO"
+    },
+    "CANDIA - New Hampshire - Copart": {
+      "sedan": 1700.0,
+      "medium": 1850.0,
+      "large": 2100.0,
+      "port": "NEWARK"
+    },
+    "CARTERSVILLE - Georgia - Copart": {
+      "sedan": 1475.0,
+      "medium": 1625.0,
+      "large": 1875.0,
+      "port": "SAVANNAH"
+    },
+    "CHAMBERSBURG - Pennsylvania - Copart": {
+      "sedan": 1650.0,
+      "medium": 1800.0,
+      "large": 2050.0,
+      "port": "NEWARK"
+    },
+    "CHARLESTON - West Virginia - Copart": {
+      "sedan": 1850.0,
+      "medium": 2000.0,
+      "large": 2250.0,
+      "port": "NORFOLK"
+    },
+    "CHICAGO NORTH - Illinois - Copart": {
+      "sedan": 1655.0,
+      "medium": 1830.0,
+      "large": 2080.0,
+      "port": "CHICAGO"
+    },
+    "CHICAGO SOUTH - Illinois - Copart": {
+      "sedan": 1655.0,
+      "medium": 1830.0,
+      "large": 2080.0,
+      "port": "CHICAGO"
+    },
+    "CHICAGO SOUTH-Woodmar/Heights sublot - Illinois - Copart": {
+      "sedan": 1655.0,
+      "medium": 1830.0,
+      "large": 2080.0,
+      "port": "CHICAGO"
+    },
+    "CHINA GROVE - North Carolina - Copart": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NORFOLK"
+    },
+    "CICERO - Indiana - Copart": {
+      "sedan": 1775.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "CHICAGO"
+    },
+    "CLEVELAND EAST - Ohio - Copart": {
+      "sedan": 1775.0,
+      "medium": 1925.0,
+      "large": 2175.0,
+      "port": "NORFOLK"
+    },
+    "CLEVELAND WEST - Ohio - Copart": {
+      "sedan": 1775.0,
+      "medium": 1925.0,
+      "large": 2175.0,
+      "port": "NORFOLK"
+    },
+    "COLORADO SPRINGS - Colorado - Copart": {
+      "sedan": 2125.0,
+      "medium": 2300.0,
+      "large": 2550.0,
+      "port": "CHICAGO"
+    },
+    "COLUMBUS - Ohio - Copart": {
+      "sedan": 1775.0,
+      "medium": 1925.0,
+      "large": 2175.0,
+      "port": "NORFOLK"
+    },
+    "CONCORD - North Carolina - Copart": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NORFOLK"
+    },
+    "CORPUS CHRISTI - Texas - Copart": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "HOUSTON"
+    },
+    "CRASHEDTOYS ATLANTA - Georgia - Copart": {
+      "sedan": 1450.0,
+      "medium": 1600.0,
+      "large": 1850.0,
+      "port": "SAVANNAH"
+    },
+    "CRASHEDTOYS DALLAS  - Texas - Copart": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "HOUSTON"
+    },
+    "DALLAS - Texas - Copart": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "HOUSTON"
+    },
+    "DALLAS SOUTH - Texas - Copart": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "HOUSTON"
+    },
+    "DANVILLE - Virginia - Copart": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NORFOLK"
+    },
+    "DAVENPORT - 169 Davenport sublot - Iowa - Copart": {
+      "sedan": 1800.0,
+      "medium": 1975.0,
+      "large": 2225.0,
+      "port": "CHICAGO"
+    },
+    "DAVENPORT - Iowa - Copart": {
+      "sedan": 1800.0,
+      "medium": 1975.0,
+      "large": 2225.0,
+      "port": "CHICAGO"
+    },
+    "DAYTON - Ohio - Copart": {
+      "sedan": 1775.0,
+      "medium": 1925.0,
+      "large": 2175.0,
+      "port": "NORFOLK"
+    },
+    "DENVER - Colorado - Copart": {
+      "sedan": 2125.0,
+      "medium": 2300.0,
+      "large": 2550.0,
+      "port": "CHICAGO"
+    },
+    "DENVER CENTRAL - Colorado - Copart": {
+      "sedan": 2125.0,
+      "medium": 2300.0,
+      "large": 2550.0,
+      "port": "CHICAGO"
+    },
+    "DENVER SOUTH - Colorado - Copart": {
+      "sedan": 2125.0,
+      "medium": 2300.0,
+      "large": 2550.0,
+      "port": "CHICAGO"
+    },
+    "DES MOINES - Iowa - Copart": {
+      "sedan": 1875.0,
+      "medium": 2050.0,
+      "large": 2300.0,
+      "port": "CHICAGO"
+    },
+    "DETROIT - Michigan - Copart": {
+      "sedan": 1875.0,
+      "medium": 2050.0,
+      "large": 2300.0,
+      "port": "CHICAGO"
+    },
+    "DOTHAN - Alabama - Copart": {
+      "sedan": 1550.0,
+      "medium": 1700.0,
+      "large": 1950.0,
+      "port": "SAVANNAH"
+    },
+    "DYER  - Indiana - Copart": {
+      "sedan": 1655.0,
+      "medium": 1830.0,
+      "large": 2080.0,
+      "port": "CHICAGO"
+    },
+    "EARLINGTON - Kentucky - Copart": {
+      "sedan": 1725.0,
+      "medium": 1875.0,
+      "large": 2125.0,
+      "port": "SAVANNAH"
+    },
+    "EDMONTON - Alberta - Copart": {
+      "sedan": 3000.0,
+      "medium": 3150.0,
+      "large": 3400.0,
+      "port": "TORONTO"
+    },
+    "EL PASO - Texas - Copart": {
+      "sedan": 1825.0,
+      "medium": 1975.0,
+      "large": 2225.0,
+      "port": "HOUSTON"
+    },
+    "EUGENE - Oregon - Copart": {
+      "sedan": 2125.0,
+      "medium": 2325.0,
+      "large": 2525.0,
+      "port": "SEATTLE"
+    },
+    "EXETER  - Rhode Island - Copart": {
+      "sedan": 1650.0,
+      "medium": 1800.0,
+      "large": 2050.0,
+      "port": "NEWARK"
+    },
+    "FAIRBURN  - Georgia - Copart": {
+      "sedan": 1450.0,
+      "medium": 1600.0,
+      "large": 1850.0,
+      "port": "SAVANNAH"
+    },
+    "FAYETTEVILLE - Arkansas - Copart": {
+      "sedan": 1875.0,
+      "medium": 2025.0,
+      "large": 2275.0,
+      "port": "HOUSTON"
+    },
+    "FLINT - Michigan - Copart": {
+      "sedan": 1925.0,
+      "medium": 2100.0,
+      "large": 2350.0,
+      "port": "CHICAGO"
+    },
+    "FORT WAYNE - Indiana - Copart": {
+      "sedan": 1775.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "CHICAGO"
+    },
+    "FREDERICKSBURG  - Virginia - Copart": {
+      "sedan": 1475.0,
+      "medium": 1625.0,
+      "large": 1875.0,
+      "port": "NORFOLK"
+    },
+    "FREETOWN - Massachusetts - Copart": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "NEWARK"
+    },
+    "FRESNO - California - Copart": {
+      "sedan": 2300.0,
+      "medium": 2450.0,
+      "large": 2700.0,
+      "port": "LOS ANGELES"
+    },
+    "FT. PIERCE - Florida - Copart": {
+      "sedan": 1450.0,
+      "medium": 1600.0,
+      "large": 1850.0,
+      "port": "MIAMI"
+    },
+    "FT. WORTH - Texas - Copart": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "HOUSTON"
+    },
+    "GASTONIA - North Carolina - Copart": {
+      "sedan": 1550.0,
+      "medium": 1700.0,
+      "large": 1950.0,
+      "port": "NORFOLK"
+    },
+    "GLASSBORO EAST - New Jersey - Copart": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "NEWARK"
+    },
+    "GLASSBORO WEST - New Jersey - Copart": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "NEWARK"
+    },
+    "GRAHAM - Washington - Copart": {
+      "sedan": 1900.0,
+      "medium": 2100.0,
+      "large": 2300.0,
+      "port": "SEATTLE"
+    },
+    "Grenada - Mississippi - Copart": {
+      "sedan": 1875.0,
+      "medium": 2025.0,
+      "large": 2275.0,
+      "port": "HOUSTON"
+    },
+    "HALIFAX - Nova Scotia - Copart": {
+      "sedan": 2750.0,
+      "medium": 2900.0,
+      "large": 3150.0,
+      "port": "TORONTO"
+    },
+    "HAMPTON - Virginia - Copart": {
+      "sedan": 1375.0,
+      "medium": 1525.0,
+      "large": 1775.0,
+      "port": "NORFOLK"
+    },
+    "HARRISBURG - Pennsylvania - Copart": {
+      "sedan": 1575.0,
+      "medium": 1725.0,
+      "large": 1975.0,
+      "port": "NEWARK"
+    },
+    "HARTFORD - Connecticut - Copart": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NEWARK"
+    },
+    "HARTFORD SPRINGFIELD - Connecticut - Copart": {
+      "sedan": 1550.0,
+      "medium": 1700.0,
+      "large": 1950.0,
+      "port": "NEWARK"
+    },
+    "HAYWARD - California - Copart": {
+      "sedan": 2325.0,
+      "medium": 2475.0,
+      "large": 2725.0,
+      "port": "LOS ANGELES"
+    },
+    "HELENA - Montana - Copart": {
+      "sedan": 2500.0,
+      "medium": 2700.0,
+      "large": 2900.0,
+      "port": "SEATTLE"
+    },
+    "HONOLULU - Hawaii - Copart": {
+      "sedan": 2720.0,
+      "medium": 3020.0,
+      "large": 3520.0,
+      "port": "PORT OF HONOLULU"
+    },
+    "HOUSTON - Texas - Copart": {
+      "sedan": 1580.0,
+      "medium": 1730.0,
+      "large": 1980.0,
+      "port": "HOUSTON"
+    },
+    "HOUSTON EAST - Texas - Copart": {
+      "sedan": 1580.0,
+      "medium": 1730.0,
+      "large": 1980.0,
+      "port": "HOUSTON"
+    },
+    "INDIANAPOLIS - Indiana - Copart": {
+      "sedan": 1775.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "CHICAGO"
+    },
+    "IONIA - Michigan - Copart": {
+      "sedan": 1875.0,
+      "medium": 2050.0,
+      "large": 2300.0,
+      "port": "CHICAGO"
+    },
+    "JACKSON - Mississippi - Copart": {
+      "sedan": 1825.0,
+      "medium": 1975.0,
+      "large": 2225.0,
+      "port": "HOUSTON"
+    },
+    "JACKSONVILLE EAST - Florida - Copart": {
+      "sedan": 1400.0,
+      "medium": 1550.0,
+      "large": 1800.0,
+      "port": "SAVANNAH"
+    },
+    "JACKSONVILLE NORTH - Florida - Copart": {
+      "sedan": 1400.0,
+      "medium": 1550.0,
+      "large": 1800.0,
+      "port": "SAVANNAH"
+    },
+    "JACKSONVILLE WEST - Florida - Copart": {
+      "sedan": 1400.0,
+      "medium": 1550.0,
+      "large": 1800.0,
+      "port": "SAVANNAH"
+    },
+    "KANSAS CITY - Kansas - Copart": {
+      "sedan": 1800.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "SAVANNAH"
+    },
+    "KENS TOWING HILO - Hawaii - Copart": {
+      "sedan": 4025.0,
+      "medium": 4175.0,
+      "large": 4425.0,
+      "port": "LOS ANGELES"
+    },
+    "KINCHELOE - Michigan - Copart": {
+      "sedan": 2225.0,
+      "medium": 2400.0,
+      "large": 2650.0,
+      "port": "CHICAGO"
+    },
+    "KINDAQUICK TOWING LLC - Hawaii - Copart": {
+      "sedan": 4500.0,
+      "medium": 4825.0,
+      "large": 5075.0,
+      "port": "LOS ANGELES"
+    },
+    "KNOXVILLE - Tennessee - Copart": {
+      "sedan": 1575.0,
+      "medium": 1725.0,
+      "large": 1975.0,
+      "port": "SAVANNAH"
+    },
+    "LANSING - Michigan - Copart": {
+      "sedan": 1875.0,
+      "medium": 2050.0,
+      "large": 2300.0,
+      "port": "CHICAGO"
+    },
+    "LAS VEGAS - Nevada - Copart": {
+      "sedan": 2250.0,
+      "medium": 2400.0,
+      "large": 2650.0,
+      "port": "LOS ANGELES"
+    },
+    "LAS VEGAS WEST - Nevada - Copart": {
+      "sedan": 2300.0,
+      "medium": 2450.0,
+      "large": 2700.0,
+      "port": "LOS ANGELES"
+    },
+    "LEXINGTON EAST - Kentucky - Copart": {
+      "sedan": 1725.0,
+      "medium": 1875.0,
+      "large": 2125.0,
+      "port": "SAVANNAH"
+    },
+    "LEXINGTON WEST - Kentucky - Copart": {
+      "sedan": 1725.0,
+      "medium": 1875.0,
+      "large": 2125.0,
+      "port": "SAVANNAH"
+    },
+    "LINCOLN - Nebraska - Copart": {
+      "sedan": 1925.0,
+      "medium": 2100.0,
+      "large": 2350.0,
+      "port": "CHICAGO"
+    },
+    "LITTLE ROCK - Arkansas - Copart": {
+      "sedan": 1850.0,
+      "medium": 2000.0,
+      "large": 2250.0,
+      "port": "HOUSTON"
+    },
+    "LONDON - Ontario - Copart": {
+      "sedan": 1800.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "TORONTO"
+    },
+    "LONG BEACH - California - Copart": {
+      "sedan": 2075.0,
+      "medium": 2225.0,
+      "large": 2475.0,
+      "port": "LOS ANGELES"
+    },
+    "LONG ISLAND - New York - Copart": {
+      "sedan": 1550.0,
+      "medium": 1700.0,
+      "large": 1950.0,
+      "port": "NEWARK"
+    },
+    "LONGVIEW - Texas - Copart": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "HOUSTON"
+    },
+    "LOS ANGELES - California - Copart": {
+      "sedan": 2085.0,
+      "medium": 2235.0,
+      "large": 2485.0,
+      "port": "LOS ANGELES"
+    },
+    "LOUISVILLE - Kentucky - Copart": {
+      "sedan": 1725.0,
+      "medium": 1875.0,
+      "large": 2125.0,
+      "port": "SAVANNAH"
+    },
+    "LUFKIN - Texas - Copart": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "HOUSTON"
+    },
+    "LUMBERTON - North Carolina - Copart": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NORFOLK"
+    },
+    "LYMAN - Maine - Copart": {
+      "sedan": 1775.0,
+      "medium": 1925.0,
+      "large": 2175.0,
+      "port": "NEWARK"
+    },
+    "MACON - Georgia - Copart": {
+      "sedan": 1425.0,
+      "medium": 1575.0,
+      "large": 1825.0,
+      "port": "SAVANNAH"
+    },
+    "MADISON - Wisconsin - Copart": {
+      "sedan": 1775.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "CHICAGO"
+    },
+    "MADISON SOUTH - Wisconsin - Copart": {
+      "sedan": 1775.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "CHICAGO"
+    },
+    "MARTINEZ - California - Copart": {
+      "sedan": 2325.0,
+      "medium": 2475.0,
+      "large": 2725.0,
+      "port": "LOS ANGELES"
+    },
+    "MCALLEN - Texas - Copart": {
+      "sedan": 1750.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "HOUSTON"
+    },
+    "MEBANE - North Carolina - Copart": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NORFOLK"
+    },
+    "MEMPHIS - Tennessee - Copart": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "SAVANNAH"
+    },
+    "MENTONE - California - Copart": {
+      "sedan": 2225.0,
+      "medium": 2375.0,
+      "large": 2625.0,
+      "port": "LOS ANGELES"
+    },
+    "MIAMI CENTRAL - Florida - Copart": {
+      "sedan": 1375.0,
+      "medium": 1525.0,
+      "large": 1775.0,
+      "port": "MIAMI"
+    },
+    "MIAMI NORTH - Florida - Copart": {
+      "sedan": 1375.0,
+      "medium": 1525.0,
+      "large": 1775.0,
+      "port": "MIAMI"
+    },
+    "MIAMI SOUTH - Florida - Copart": {
+      "sedan": 1400.0,
+      "medium": 1550.0,
+      "large": 1800.0,
+      "port": "MIAMI"
+    },
+    "MILWAUKEE - Wisconsin - Copart": {
+      "sedan": 1700.0,
+      "medium": 1875.0,
+      "large": 2125.0,
+      "port": "CHICAGO"
+    },
+    "MILWAUKEE NORTH - Wisconsin - Copart": {
+      "sedan": 1700.0,
+      "medium": 1875.0,
+      "large": 2125.0,
+      "port": "CHICAGO"
+    },
+    "MILWAUKEE SOUTH - Wisconsin - Copart": {
+      "sedan": 1700.0,
+      "medium": 1875.0,
+      "large": 2125.0,
+      "port": "CHICAGO"
+    },
+    "MINNEAPOLIS - Minnesota - Copart": {
+      "sedan": 1925.0,
+      "medium": 2100.0,
+      "large": 2350.0,
+      "port": "CHICAGO"
+    },
+    "MINNEAPOLIS NORTH - Minnesota - Copart": {
+      "sedan": 1925.0,
+      "medium": 2100.0,
+      "large": 2350.0,
+      "port": "CHICAGO"
+    },
+    "MO - COLUMBIA - Missouri - Copart": {
+      "sedan": 1800.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "SAVANNAH"
+    },
+    "MOBILE - Alabama - Copart": {
+      "sedan": 1575.0,
+      "medium": 1725.0,
+      "large": 1975.0,
+      "port": "SAVANNAH"
+    },
+    "MOBILE SOUTH - Alabama - Copart": {
+      "sedan": 1575.0,
+      "medium": 1725.0,
+      "large": 1975.0,
+      "port": "SAVANNAH"
+    },
+    "MOCKSVILLE  - North Carolina - Copart": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NORFOLK"
+    },
+    "MONCTON - New Brunswick - Copart": {
+      "sedan": 2825.0,
+      "medium": 2975.0,
+      "large": 3225.0,
+      "port": "TORONTO"
+    },
+    "MONTGOMERY - Alabama - Copart": {
+      "sedan": 1575.0,
+      "medium": 1725.0,
+      "large": 1975.0,
+      "port": "SAVANNAH"
+    },
+    "MONTREAL - Quebec - Copart": {
+      "sedan": 2050.0,
+      "medium": 2200.0,
+      "large": 2450.0,
+      "port": "TORONTO"
+    },
+    "N.Boston-ROWLEY Sublot - Massachusetts - Copart": {
+      "sedan": 1750.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "NEWARK"
+    },
+    "NAPA - California - Copart": {
+      "sedan": 2400.0,
+      "medium": 2550.0,
+      "large": 2800.0,
+      "port": "LOS ANGELES"
+    },
+    "NASHVILLE - Tennessee - Copart": {
+      "sedan": 1575.0,
+      "medium": 1725.0,
+      "large": 1975.0,
+      "port": "SAVANNAH"
+    },
+    "NEW ORLEANS - Louisiana - Copart": {
+      "sedan": 1800.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "HOUSTON"
+    },
+    "NEWBURGH - New York - Copart": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NEWARK"
+    },
+    "NORTH AUSTIN - Texas - Copart": {
+      "sedan": 1725.0,
+      "medium": 1875.0,
+      "large": 2125.0,
+      "port": "HOUSTON"
+    },
+    "NORTH BOSTON - Massachusetts - Copart": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "NEWARK"
+    },
+    "NORTH CHARLESTON - South Carolina - Copart": {
+      "sedan": 1450.0,
+      "medium": 1600.0,
+      "large": 1850.0,
+      "port": "SAVANNAH"
+    },
+    "NORTH SEATTLE - Washington - Copart": {
+      "sedan": 1975.0,
+      "medium": 2175.0,
+      "large": 2375.0,
+      "port": "SEATTLE"
+    },
+    "OCALA - Florida - Copart": {
+      "sedan": 1550.0,
+      "medium": 1700.0,
+      "large": 1950.0,
+      "port": "MIAMI"
+    },
+    "OGDEN - Utah - Copart": {
+      "sedan": 2475.0,
+      "medium": 2625.0,
+      "large": 2875.0,
+      "port": "LOS ANGELES"
+    },
+    "OKLAHOMA CITY - Oklahoma - Copart": {
+      "sedan": 1800.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "HOUSTON"
+    },
+    "ORLANDO - Florida - Copart": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "MIAMI"
+    },
+    "ORLANDO NORTH - Florida - Copart": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "MIAMI"
+    },
+    "ORLANDO SOUTH - Florida - Copart": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "MIAMI"
+    },
+    "OTTAWA - Ontario - Copart": {
+      "sedan": 2025.0,
+      "medium": 2175.0,
+      "large": 2425.0,
+      "port": "TORONTO"
+    },
+    "PASCO - Washington - Copart": {
+      "sedan": 2100.0,
+      "medium": 2300.0,
+      "large": 2500.0,
+      "port": "SEATTLE"
+    },
+    "PEORIA - Illinois - Copart": {
+      "sedan": 1775.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "CHICAGO"
+    },
+    "PHILADELPHIA - Pennsylvania - Copart": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "NEWARK"
+    },
+    "PHILADELPHIA EAST-SUBLOT - Pennsylvania - Copart": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "NEWARK"
+    },
+    "PHOENIX - Arizona - Copart": {
+      "sedan": 2275.0,
+      "medium": 2425.0,
+      "large": 2675.0,
+      "port": "LOS ANGELES"
+    },
+    "Phoenix North - Arizona - Copart": {
+      "sedan": 2400.0,
+      "medium": 2550.0,
+      "large": 2800.0,
+      "port": "LOS ANGELES"
+    },
+    "PITTSBURGH EAST - Pennsylvania - Copart": {
+      "sedan": 1700.0,
+      "medium": 1850.0,
+      "large": 2100.0,
+      "port": "NEWARK"
+    },
+    "PITTSBURGH NORTH - Pennsylvania - Copart": {
+      "sedan": 1750.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "NEWARK"
+    },
+    "PITTSBURGH SOUTH - Pennsylvania - Copart": {
+      "sedan": 1750.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "NEWARK"
+    },
+    "PITTSBURGH WEST - Pennsylvania - Copart": {
+      "sedan": 1750.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "NEWARK"
+    },
+    "PORTLAND NORTH - Oregon - Copart": {
+      "sedan": 2000.0,
+      "medium": 2200.0,
+      "large": 2400.0,
+      "port": "SEATTLE"
+    },
+    "PORTLAND SOUTH - Oregon - Copart": {
+      "sedan": 2050.0,
+      "medium": 2250.0,
+      "large": 2450.0,
+      "port": "SEATTLE"
+    },
+    "PUNTA GORDA - Florida - Copart": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "MIAMI"
+    },
+    "PUNTA GORDA SOUTH - Florida - Copart": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "MIAMI"
+    },
+    "RALEIGH - North Carolina - Copart": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NORFOLK"
+    },
+    "RANCHO CUCAMONGA - California - Copart": {
+      "sedan": 2125.0,
+      "medium": 2275.0,
+      "large": 2525.0,
+      "port": "LOS ANGELES"
+    },
+    "REDDING - California - Copart": {
+      "sedan": 2725.0,
+      "medium": 2875.0,
+      "large": 3125.0,
+      "port": "LOS ANGELES"
+    },
+    "RENO - Nevada - Copart": {
+      "sedan": 2475.0,
+      "medium": 2625.0,
+      "large": 2875.0,
+      "port": "LOS ANGELES"
+    },
+    "RICHMOND - Virginia - Copart": {
+      "sedan": 1400.0,
+      "medium": 1550.0,
+      "large": 1800.0,
+      "port": "NORFOLK"
+    },
+    "RICHMOND EAST - Virginia - Copart": {
+      "sedan": 1400.0,
+      "medium": 1550.0,
+      "large": 1800.0,
+      "port": "NORFOLK"
+    },
+    "ROCHESTER - New York - Copart": {
+      "sedan": 1750.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "NEWARK"
+    },
+    "RUTLAND - Vermont - Copart": {
+      "sedan": 1800.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "NEWARK"
+    },
+    "SACRAMENTO - California - Copart": {
+      "sedan": 2325.0,
+      "medium": 2475.0,
+      "large": 2725.0,
+      "port": "LOS ANGELES"
+    },
+    "SALT LAKE CITY - Utah - Copart": {
+      "sedan": 2575.0,
+      "medium": 2725.0,
+      "large": 2975.0,
+      "port": "LOS ANGELES"
+    },
+    "SALT LAKE CITY NORTH - Utah - Copart": {
+      "sedan": 2475.0,
+      "medium": 2625.0,
+      "large": 2875.0,
+      "port": "LOS ANGELES"
+    },
+    "SAN ANTONIO - Texas - Copart": {
+      "sedan": 1700.0,
+      "medium": 1850.0,
+      "large": 2100.0,
+      "port": "HOUSTON"
+    },
+    "SAN BERNARDINO - California - Copart": {
+      "sedan": 2125.0,
+      "medium": 2275.0,
+      "large": 2525.0,
+      "port": "LOS ANGELES"
+    },
+    "SAN DIEGO - California - Copart": {
+      "sedan": 2225.0,
+      "medium": 2375.0,
+      "large": 2625.0,
+      "port": "LOS ANGELES"
+    },
+    "SAN JOSE - California - Copart": {
+      "sedan": 2325.0,
+      "medium": 2475.0,
+      "large": 2725.0,
+      "port": "LOS ANGELES"
+    },
+    "SAVANNAH - Georgia - Copart": {
+      "sedan": 1300.0,
+      "medium": 1450.0,
+      "large": 1700.0,
+      "port": "SAVANNAH"
+    },
+    "SAVANNAH / VERTIA SUBLOT-Georgia Copart - Georgia - Copart": {
+      "sedan": 1350.0,
+      "medium": 1500.0,
+      "large": 1750.0,
+      "port": "SAVANNAH"
+    },
+    "SC - COLUMBIA - South Carolina - Copart": {
+      "sedan": 1450.0,
+      "medium": 1600.0,
+      "large": 1850.0,
+      "port": "SAVANNAH"
+    },
+    "SCRANTON - Pennsylvania - Copart": {
+      "sedan": 1550.0,
+      "medium": 1700.0,
+      "large": 1950.0,
+      "port": "NEWARK"
+    },
+    "SEAFORD - Delaware - Copart": {
+      "sedan": 1625.0,
+      "medium": 1775.0,
+      "large": 2025.0,
+      "port": "NEWARK"
+    },
+    "SHREVEPORT - Louisiana - Copart": {
+      "sedan": 1715.0,
+      "medium": 1865.0,
+      "large": 2115.0,
+      "port": "HOUSTON"
+    },
+    "SIKESTON - Missouri - Copart": {
+      "sedan": 1950.0,
+      "medium": 2125.0,
+      "large": 2375.0,
+      "port": "CHICAGO"
+    },
+    "SO SACRAMENTO - California - Copart": {
+      "sedan": 2325.0,
+      "medium": 2475.0,
+      "large": 2725.0,
+      "port": "LOS ANGELES"
+    },
+    "SOMERVILLE - New Jersey - Copart": {
+      "sedan": 1450.0,
+      "medium": 1600.0,
+      "large": 1850.0,
+      "port": "NEWARK"
+    },
+    "SOUTH BOSTON - Massachusetts - Copart": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "NEWARK"
+    },
+    "Southern Illinois - Illinois - Copart": {
+      "sedan": 1750.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "SAVANNAH"
+    },
+    "SPARTANBURG - South Carolina - Copart": {
+      "sedan": 1475.0,
+      "medium": 1625.0,
+      "large": 1875.0,
+      "port": "SAVANNAH"
+    },
+    "SPOKANE - Washington - Copart": {
+      "sedan": 2100.0,
+      "medium": 2300.0,
+      "large": 2500.0,
+      "port": "SEATTLE"
+    },
+    "SPRINGFIELD - Missouri - Copart": {
+      "sedan": 1800.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "SAVANNAH"
+    },
+    "ST. CLOUD - Minnesota - Copart": {
+      "sedan": 1975.0,
+      "medium": 2150.0,
+      "large": 2400.0,
+      "port": "CHICAGO"
+    },
+    "ST. JOHN'S - Newfoundland and Lab - Copart": {
+      "sedan": 3400.0,
+      "medium": 3550.0,
+      "large": 3800.0,
+      "port": "TORONTO"
+    },
+    "ST. LOUIS - Missouri - Copart": {
+      "sedan": 1750.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "SAVANNAH"
+    },
+    "SUN VALLEY - California - Copart": {
+      "sedan": 2125.0,
+      "medium": 2275.0,
+      "large": 2525.0,
+      "port": "LOS ANGELES"
+    },
+    "SYRACUSE - New York - Copart": {
+      "sedan": 1625.0,
+      "medium": 1775.0,
+      "large": 2025.0,
+      "port": "NEWARK"
+    },
+    "TALLAHASSEE - Florida - Copart": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "SAVANNAH"
+    },
+    "TAMPA SOUTH - Florida - Copart": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "MIAMI"
+    },
+    "TAMPA SOUTH - Mulberry Sublot - Florida - Copart": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "MIAMI"
+    },
+    "TANNER - Alabama - Copart": {
+      "sedan": 1600.0,
+      "medium": 1750.0,
+      "large": 2000.0,
+      "port": "SAVANNAH"
+    },
+    "TIFTON - Georgia - Copart": {
+      "sedan": 1450.0,
+      "medium": 1600.0,
+      "large": 1850.0,
+      "port": "SAVANNAH"
+    },
+    "TORONTO - Ontario - Copart": {
+      "sedan": 1775.0,
+      "medium": 1925.0,
+      "large": 2175.0,
+      "port": "TORONTO"
+    },
+    "TOW GUYS KAMUELA - Hawaii - Copart": {
+      "sedan": 4225.0,
+      "medium": 4375.0,
+      "large": 4625.0,
+      "port": "LOS ANGELES"
+    },
+    "TRENTON - New Jersey - Copart": {
+      "sedan": 1450.0,
+      "medium": 1600.0,
+      "large": 1850.0,
+      "port": "NEWARK"
+    },
+    "TUCSON - Arizona - Copart": {
+      "sedan": 2325.0,
+      "medium": 2475.0,
+      "large": 2725.0,
+      "port": "LOS ANGELES"
+    },
+    "TULSA - Oklahoma - Copart": {
+      "sedan": 1875.0,
+      "medium": 2025.0,
+      "large": 2275.0,
+      "port": "HOUSTON"
+    },
+    "VALLEJO - California - Copart": {
+      "sedan": 2325.0,
+      "medium": 2475.0,
+      "large": 2725.0,
+      "port": "LOS ANGELES"
+    },
+    "VAN NUYS - California - Copart": {
+      "sedan": 2125.0,
+      "medium": 2275.0,
+      "large": 2525.0,
+      "port": "LOS ANGELES"
+    },
+    "WACO - Texas - Copart": {
+      "sedan": 1725.0,
+      "medium": 1875.0,
+      "large": 2125.0,
+      "port": "HOUSTON"
+    },
+    "WALTON - Kentucky - Copart": {
+      "sedan": 1725.0,
+      "medium": 1875.0,
+      "large": 2125.0,
+      "port": "SAVANNAH"
+    },
+    "WASHINGTON DC - Maryland - Copart": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NORFOLK"
+    },
+    "WAYLAND - Michigan - Copart": {
+      "sedan": 1875.0,
+      "medium": 2050.0,
+      "large": 2300.0,
+      "port": "CHICAGO"
+    },
+    "WEBSTER - New Hampshire - Copart": {
+      "sedan": 1700.0,
+      "medium": 1850.0,
+      "large": 2100.0,
+      "port": "NEWARK"
+    },
+    "WEST PALM BEACH - Florida - Copart": {
+      "sedan": 1420.0,
+      "medium": 1570.0,
+      "large": 1820.0,
+      "port": "MIAMI"
+    },
+    "WEST WARREN - Massachusetts - Copart": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "NEWARK"
+    },
+    "WHEELING - Illinois - Copart": {
+      "sedan": 1655.0,
+      "medium": 1830.0,
+      "large": 2080.0,
+      "port": "CHICAGO"
+    },
+    "WICHITA - Kansas - Copart": {
+      "sedan": 1950.0,
+      "medium": 2100.0,
+      "large": 2350.0,
+      "port": "HOUSTON"
+    },
+    "Windham - Maine - Copart": {
+      "sedan": 1775.0,
+      "medium": 1925.0,
+      "large": 2175.0,
+      "port": "NEWARK"
+    },
+    "YORK HAVEN - Pennsylvania - Copart": {
+      "sedan": 1575.0,
+      "medium": 1725.0,
+      "large": 1975.0,
+      "port": "NEWARK"
+    }
+  },
+  "IAAI": {
+    "ABILENE - Texas - IAAI": {
+      "sedan": 1750.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "HOUSTON"
+    },
+    "ACE - Carson - California - IAAI": {
+      "sedan": 2085.0,
+      "medium": 2235.0,
+      "large": 2485.0,
+      "port": "LOS ANGELES"
+    },
+    "ACE - Perris - California - IAAI": {
+      "sedan": 2175.0,
+      "medium": 2325.0,
+      "large": 2575.0,
+      "port": "LOS ANGELES"
+    },
+    "ACE - PERRIS 2 - California - IAAI": {
+      "sedan": 2200.0,
+      "medium": 2350.0,
+      "large": 2600.0,
+      "port": "LOS ANGELES"
+    },
+    "AKRON-CANTON - Ohio - IAAI": {
+      "sedan": 1775.0,
+      "medium": 1925.0,
+      "large": 2175.0,
+      "port": "NORFOLK"
+    },
+    "ALBANY - New York - IAAI": {
+      "sedan": 1575.0,
+      "medium": 1725.0,
+      "large": 1975.0,
+      "port": "NEWARK"
+    },
+    "ALBUQUERQUE - New Mexico - IAAI": {
+      "sedan": 2000.0,
+      "medium": 2150.0,
+      "large": 2400.0,
+      "port": "HOUSTON"
+    },
+    "ALTOONA - Pennsylvania - IAAI": {
+      "sedan": 1750.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "NEWARK"
+    },
+    "AMARILLO - Texas - IAAI": {
+      "sedan": 1925.0,
+      "medium": 2075.0,
+      "large": 2325.0,
+      "port": "HOUSTON"
+    },
+    "ANAHEIM - California - IAAI": {
+      "sedan": 2125.0,
+      "medium": 2275.0,
+      "large": 2525.0,
+      "port": "LOS ANGELES"
+    },
+    "APPLETON - Wisconsin - IAAI": {
+      "sedan": 1800.0,
+      "medium": 1975.0,
+      "large": 2225.0,
+      "port": "CHICAGO"
+    },
+    "ASHEVILLE - North Carolina - IAAI": {
+      "sedan": 1625.0,
+      "medium": 1775.0,
+      "large": 2025.0,
+      "port": "NORFOLK"
+    },
+    "ATLANTA - Georgia - IAAI": {
+      "sedan": 1475.0,
+      "medium": 1625.0,
+      "large": 1875.0,
+      "port": "SAVANNAH"
+    },
+    "ATLANTA EAST - Georgia - IAAI": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "SAVANNAH"
+    },
+    "ATLANTA NORTH - Georgia - IAAI": {
+      "sedan": 1475.0,
+      "medium": 1625.0,
+      "large": 1875.0,
+      "port": "SAVANNAH"
+    },
+    "ATLANTA SOUTH - Georgia - IAAI": {
+      "sedan": 1475.0,
+      "medium": 1625.0,
+      "large": 1875.0,
+      "port": "SAVANNAH"
+    },
+    "AUSTIN - Texas - IAAI": {
+      "sedan": 1650.0,
+      "medium": 1800.0,
+      "large": 2050.0,
+      "port": "HOUSTON"
+    },
+    "AUSTIN NORTH - Texas - IAAI": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "HOUSTON"
+    },
+    "AVENEL NEW JERSEY - New Jersey - IAAI": {
+      "sedan": 1425.0,
+      "medium": 1575.0,
+      "large": 1825.0,
+      "port": "NEWARK"
+    },
+    "BALTIMORE - Maryland - IAAI": {
+      "sedan": 1575.0,
+      "medium": 1725.0,
+      "large": 1975.0,
+      "port": "NORFOLK"
+    },
+    "BATON ROUGE - Louisiana - IAAI": {
+      "sedan": 1750.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "HOUSTON"
+    },
+    "BILLINGS - Montana - IAAI": {
+      "sedan": 2600.0,
+      "medium": 2800.0,
+      "large": 3000.0,
+      "port": "SEATTLE"
+    },
+    "BIRMINGHAM - Alabama - IAAI": {
+      "sedan": 1550.0,
+      "medium": 1700.0,
+      "large": 1950.0,
+      "port": "SAVANNAH"
+    },
+    "BOISE - Idaho - IAAI": {
+      "sedan": 2200.0,
+      "medium": 2400.0,
+      "large": 2600.0,
+      "port": "SEATTLE"
+    },
+    "BOSTON - SHIRLEY - Massachusetts - IAAI": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "NEWARK"
+    },
+    "BRIDGEPORT - Pennsylvania - IAAI": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "NEWARK"
+    },
+    "BUCKHANNON - West Virginia - IAAI": {
+      "sedan": 1850.0,
+      "medium": 2000.0,
+      "large": 2250.0,
+      "port": "NORFOLK"
+    },
+    "BUFFALO - New York - IAAI": {
+      "sedan": 1800.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "NEWARK"
+    },
+    "BURLINGTON - Vermont - IAAI": {
+      "sedan": 1800.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "NEWARK"
+    },
+    "BZ Trucking - Hawaii - IAAI": {
+      "sedan": 4225.0,
+      "medium": 4375.0,
+      "large": 4625.0,
+      "port": "LOS ANGELES"
+    },
+    "CENTRAL NEW JERSEY - New Jersey - IAAI": {
+      "sedan": 1450.0,
+      "medium": 1600.0,
+      "large": 1850.0,
+      "port": "NEWARK"
+    },
+    "CHARLESTON - South Carolina - IAAI": {
+      "sedan": 1450.0,
+      "medium": 1600.0,
+      "large": 1850.0,
+      "port": "SAVANNAH"
+    },
+    "CHARLOTTE - North Carolina - IAAI": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NORFOLK"
+    },
+    "CHATTANOOGA - Tennessee - IAAI": {
+      "sedan": 1650.0,
+      "medium": 1800.0,
+      "large": 2050.0,
+      "port": "SAVANNAH"
+    },
+    "CHICAGO-NORTH - Illinois - IAAI": {
+      "sedan": 1655.0,
+      "medium": 1830.0,
+      "large": 2080.0,
+      "port": "CHICAGO"
+    },
+    "CHICAGO-SOUTH - Illinois - IAAI": {
+      "sedan": 1655.0,
+      "medium": 1830.0,
+      "large": 2080.0,
+      "port": "CHICAGO"
+    },
+    "CHICAGO-WEST - Illinois - IAAI": {
+      "sedan": 1655.0,
+      "medium": 1830.0,
+      "large": 2080.0,
+      "port": "CHICAGO"
+    },
+    "CINCINNATI - Ohio - IAAI": {
+      "sedan": 1775.0,
+      "medium": 1925.0,
+      "large": 2175.0,
+      "port": "NORFOLK"
+    },
+    "CINCINNATI SOUTH - Ohio - IAAI": {
+      "sedan": 1775.0,
+      "medium": 1925.0,
+      "large": 2175.0,
+      "port": "NORFOLK"
+    },
+    "CLEARWATER - Florida - IAAI": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "MIAMI"
+    },
+    "CLEVELAND - Ohio - IAAI": {
+      "sedan": 1775.0,
+      "medium": 1925.0,
+      "large": 2175.0,
+      "port": "NORFOLK"
+    },
+    "Colorado Springs - Colorado - IAAI": {
+      "sedan": 2125.0,
+      "medium": 2300.0,
+      "large": 2550.0,
+      "port": "CHICAGO"
+    },
+    "COLTON - California - IAAI": {
+      "sedan": 2125.0,
+      "medium": 2275.0,
+      "large": 2525.0,
+      "port": "LOS ANGELES"
+    },
+    "COLUMBIA - South Carolina - IAAI": {
+      "sedan": 1450.0,
+      "medium": 1600.0,
+      "large": 1850.0,
+      "port": "SAVANNAH"
+    },
+    "COLUMBUS - Ohio - IAAI": {
+      "sedan": 1775.0,
+      "medium": 1925.0,
+      "large": 2175.0,
+      "port": "NORFOLK"
+    },
+    "CONCORD - North Carolina - IAAI": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NORFOLK"
+    },
+    "CORPUS CHRISTI - Texas - IAAI": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "HOUSTON"
+    },
+    "CULPEPER - Virginia - IAAI": {
+      "sedan": 1475.0,
+      "medium": 1625.0,
+      "large": 1875.0,
+      "port": "NORFOLK"
+    },
+    "D&D TOWING INC MAUI - Hawaii - IAAI": {
+      "sedan": 4325.0,
+      "medium": 4475.0,
+      "large": 4725.0,
+      "port": "LOS ANGELES"
+    },
+    "DALLAS - Texas - IAAI": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "HOUSTON"
+    },
+    "Dallas/Ft Worth - Texas - IAAI": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "HOUSTON"
+    },
+    "DAVENPORT - Iowa - IAAI": {
+      "sedan": 1800.0,
+      "medium": 1975.0,
+      "large": 2225.0,
+      "port": "CHICAGO"
+    },
+    "DAYTON - Ohio - IAAI": {
+      "sedan": 1775.0,
+      "medium": 1925.0,
+      "large": 2175.0,
+      "port": "NORFOLK"
+    },
+    "DC TOWING HILO - Hawaii - IAAI": {
+      "sedan": 4025.0,
+      "medium": 4175.0,
+      "large": 4425.0,
+      "port": "LOS ANGELES"
+    },
+    "DENVER - Colorado - IAAI": {
+      "sedan": 2125.0,
+      "medium": 2300.0,
+      "large": 2550.0,
+      "port": "CHICAGO"
+    },
+    "DENVER EAST - Colorado - IAAI": {
+      "sedan": 2125.0,
+      "medium": 2300.0,
+      "large": 2550.0,
+      "port": "CHICAGO"
+    },
+    "DES MOINES - Iowa - IAAI": {
+      "sedan": 1875.0,
+      "medium": 2050.0,
+      "large": 2300.0,
+      "port": "CHICAGO"
+    },
+    "DETROIT - Michigan - IAAI": {
+      "sedan": 1875.0,
+      "medium": 2050.0,
+      "large": 2300.0,
+      "port": "CHICAGO"
+    },
+    "DOTHAN - Alabama - IAAI": {
+      "sedan": 1550.0,
+      "medium": 1700.0,
+      "large": 1950.0,
+      "port": "SAVANNAH"
+    },
+    "DUNDALK - Maryland - IAAI": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NORFOLK"
+    },
+    "EAST BAY - California - IAAI": {
+      "sedan": 2325.0,
+      "medium": 2475.0,
+      "large": 2725.0,
+      "port": "LOS ANGELES"
+    },
+    "EL PASO - Texas - IAAI": {
+      "sedan": 1825.0,
+      "medium": 1975.0,
+      "large": 2225.0,
+      "port": "HOUSTON"
+    },
+    "Elkton  - Maryland - IAAI": {
+      "sedan": 1575.0,
+      "medium": 1725.0,
+      "large": 1975.0,
+      "port": "NORFOLK"
+    },
+    "Englishtown - New Jersey - IAAI": {
+      "sedan": 1450.0,
+      "medium": 1600.0,
+      "large": 1850.0,
+      "port": "NEWARK"
+    },
+    "ERIE - Pennsylvania - IAAI": {
+      "sedan": 1800.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "NEWARK"
+    },
+    "EUGENE - Oregon - IAAI": {
+      "sedan": 2125.0,
+      "medium": 2325.0,
+      "large": 2525.0,
+      "port": "SEATTLE"
+    },
+    "FARGO - North Dakota - IAAI": {
+      "sedan": 2125.0,
+      "medium": 2300.0,
+      "large": 2550.0,
+      "port": "CHICAGO"
+    },
+    "FAYETTEVILLE - Arkansas - IAAI": {
+      "sedan": 1875.0,
+      "medium": 2025.0,
+      "large": 2275.0,
+      "port": "HOUSTON"
+    },
+    "FLINT - Michigan - IAAI": {
+      "sedan": 1925.0,
+      "medium": 2100.0,
+      "large": 2350.0,
+      "port": "CHICAGO"
+    },
+    "FONTANA - California - IAAI": {
+      "sedan": 2125.0,
+      "medium": 2275.0,
+      "large": 2525.0,
+      "port": "LOS ANGELES"
+    },
+    "FORT MYERS - Florida - IAAI": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "MIAMI"
+    },
+    "FORT PIERCE - Florida - IAAI": {
+      "sedan": 1450.0,
+      "medium": 1600.0,
+      "large": 1850.0,
+      "port": "MIAMI"
+    },
+    "Fort Wayne  - Indiana - IAAI": {
+      "sedan": 1775.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "CHICAGO"
+    },
+    "Fort Worth North - Texas - IAAI": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "HOUSTON"
+    },
+    "Fredericksburg-South - Virginia - IAAI": {
+      "sedan": 1475.0,
+      "medium": 1625.0,
+      "large": 1875.0,
+      "port": "NORFOLK"
+    },
+    "FREMONT - California - IAAI": {
+      "sedan": 2325.0,
+      "medium": 2475.0,
+      "large": 2725.0,
+      "port": "LOS ANGELES"
+    },
+    "FRESNO - California - IAAI": {
+      "sedan": 2300.0,
+      "medium": 2450.0,
+      "large": 2700.0,
+      "port": "LOS ANGELES"
+    },
+    "GRAND RAPIDS - Michigan - IAAI": {
+      "sedan": 1875.0,
+      "medium": 2050.0,
+      "large": 2300.0,
+      "port": "CHICAGO"
+    },
+    "GREENSBORO - North Carolina - IAAI": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NORFOLK"
+    },
+    "GREENVILLE - South Carolina - IAAI": {
+      "sedan": 1475.0,
+      "medium": 1625.0,
+      "large": 1875.0,
+      "port": "SAVANNAH"
+    },
+    "GRENADA - Mississippi - IAAI": {
+      "sedan": 1875.0,
+      "medium": 2025.0,
+      "large": 2275.0,
+      "port": "HOUSTON"
+    },
+    "GULF COAST - Mississippi - IAAI": {
+      "sedan": 1875.0,
+      "medium": 2025.0,
+      "large": 2275.0,
+      "port": "HOUSTON"
+    },
+    "HARTFORD - Connecticut - IAAI": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NEWARK"
+    },
+    "HARTFORD-SOUTH - Connecticut - IAAI": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NEWARK"
+    },
+    "HIGH DESERT - California - IAAI": {
+      "sedan": 2225.0,
+      "medium": 2375.0,
+      "large": 2625.0,
+      "port": "LOS ANGELES"
+    },
+    "HIGH POINT - North Carolina - IAAI": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NORFOLK"
+    },
+    "HONOLULU - Hawaii - IAAI": {
+      "sedan": 2720.0,
+      "medium": 3020.0,
+      "large": 3520.0,
+      "port": "PORT OF HONOLULU"
+    },
+    "HOUSTON - Texas - IAAI": {
+      "sedan": 1580.0,
+      "medium": 1730.0,
+      "large": 1980.0,
+      "port": "HOUSTON"
+    },
+    "HOUSTON SOUTH - Texas - IAAI": {
+      "sedan": 1580.0,
+      "medium": 1730.0,
+      "large": 1980.0,
+      "port": "HOUSTON"
+    },
+    "HOUSTON-NORTH - Texas - IAAI": {
+      "sedan": 1565.0,
+      "medium": 1715.0,
+      "large": 1965.0,
+      "port": "HOUSTON"
+    },
+    "HUNTSVILLE - Alabama - IAAI": {
+      "sedan": 1625.0,
+      "medium": 1775.0,
+      "large": 2025.0,
+      "port": "SAVANNAH"
+    },
+    "INDIANAPOLIS - Indiana - IAAI": {
+      "sedan": 1775.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "CHICAGO"
+    },
+    "Indianapolis South  - Indiana - IAAI": {
+      "sedan": 1775.0,
+      "medium": 1925.0,
+      "large": 2175.0,
+      "port": "SAVANNAH"
+    },
+    "JACKSON - Mississippi - IAAI": {
+      "sedan": 1825.0,
+      "medium": 1975.0,
+      "large": 2225.0,
+      "port": "HOUSTON"
+    },
+    "JACKSONVILLE - Florida - IAAI": {
+      "sedan": 1400.0,
+      "medium": 1550.0,
+      "large": 1800.0,
+      "port": "SAVANNAH"
+    },
+    "KANSAS CITY - Kansas - IAAI": {
+      "sedan": 1800.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "SAVANNAH"
+    },
+    "Kansas City East - Missouri - IAAI": {
+      "sedan": 1975.0,
+      "medium": 2150.0,
+      "large": 2400.0,
+      "port": "CHICAGO"
+    },
+    "KNOXVILLE - Tennessee - IAAI": {
+      "sedan": 1575.0,
+      "medium": 1725.0,
+      "large": 1975.0,
+      "port": "SAVANNAH"
+    },
+    "LAFAYETTE - Louisiana - IAAI": {
+      "sedan": 1775.0,
+      "medium": 1925.0,
+      "large": 2175.0,
+      "port": "HOUSTON"
+    },
+    "LAS VEGAS - (OLD) - Nevada - IAAI": {
+      "sedan": 2250.0,
+      "medium": 2400.0,
+      "large": 2650.0,
+      "port": "LOS ANGELES"
+    },
+    "LAS VEGAS - Nevada - IAAI": {
+      "sedan": 2300.0,
+      "medium": 2450.0,
+      "large": 2700.0,
+      "port": "LOS ANGELES"
+    },
+    "LAUREL - Maryland - IAAI": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NORFOLK"
+    },
+    "LEE'S TOWING KAUAI - Hawaii - IAAI": {
+      "sedan": 4350.0,
+      "medium": 4825.0,
+      "large": 5075.0,
+      "port": "PORT OF HONOLULU"
+    },
+    "Lexington - South Carolina - IAAI": {
+      "sedan": 1475.0,
+      "medium": 1625.0,
+      "large": 1875.0,
+      "port": "SAVANNAH"
+    },
+    "LINCOLN - Illinois - IAAI": {
+      "sedan": 1775.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "CHICAGO"
+    },
+    "LITTLE ROCK - Arkansas - IAAI": {
+      "sedan": 1850.0,
+      "medium": 2000.0,
+      "large": 2250.0,
+      "port": "HOUSTON"
+    },
+    "LONG ISLAND - New York - IAAI": {
+      "sedan": 1550.0,
+      "medium": 1700.0,
+      "large": 1950.0,
+      "port": "NEWARK"
+    },
+    "LONGVIEW - Texas - IAAI": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "HOUSTON"
+    },
+    "LOS ANGELES - California - IAAI": {
+      "sedan": 2085.0,
+      "medium": 2235.0,
+      "large": 2485.0,
+      "port": "LOS ANGELES"
+    },
+    "Los Angeles South - California - IAAI": {
+      "sedan": 2075.0,
+      "medium": 2225.0,
+      "large": 2475.0,
+      "port": "LOS ANGELES"
+    },
+    "LOUISVILLE - Kentucky - IAAI": {
+      "sedan": 1725.0,
+      "medium": 1875.0,
+      "large": 2125.0,
+      "port": "SAVANNAH"
+    },
+    "LOUISVILLE NORTH - Kentucky - IAAI": {
+      "sedan": 1725.0,
+      "medium": 1875.0,
+      "large": 2125.0,
+      "port": "SAVANNAH"
+    },
+    "LUBBOCK - Texas - IAAI": {
+      "sedan": 1850.0,
+      "medium": 2000.0,
+      "large": 2250.0,
+      "port": "HOUSTON"
+    },
+    "MACON - Georgia - IAAI": {
+      "sedan": 1450.0,
+      "medium": 1600.0,
+      "large": 1850.0,
+      "port": "SAVANNAH"
+    },
+    "MANCHESTER - New Hampshire - IAAI": {
+      "sedan": 1700.0,
+      "medium": 1850.0,
+      "large": 2100.0,
+      "port": "NEWARK"
+    },
+    "MCALLEN - Texas - IAAI": {
+      "sedan": 1750.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "HOUSTON"
+    },
+    "MEMPHIS - Tennessee - IAAI": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "SAVANNAH"
+    },
+    "METRO DC - Maryland - IAAI": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NORFOLK"
+    },
+    "MIAMI - Florida - IAAI": {
+      "sedan": 1375.0,
+      "medium": 1525.0,
+      "large": 1775.0,
+      "port": "MIAMI"
+    },
+    "MIAMI-NORTH - Florida - IAAI": {
+      "sedan": 1400.0,
+      "medium": 1550.0,
+      "large": 1800.0,
+      "port": "MIAMI"
+    },
+    "MILWAUKEE - Wisconsin - IAAI": {
+      "sedan": 1700.0,
+      "medium": 1875.0,
+      "large": 2125.0,
+      "port": "CHICAGO"
+    },
+    "Minneapolis South - Minnesota - IAAI": {
+      "sedan": 1925.0,
+      "medium": 2100.0,
+      "large": 2350.0,
+      "port": "CHICAGO"
+    },
+    "MINNEAPOLIS/ST. PAUL - Minnesota - IAAI": {
+      "sedan": 1925.0,
+      "medium": 2100.0,
+      "large": 2350.0,
+      "port": "CHICAGO"
+    },
+    "MISSOULA - Montana - IAAI": {
+      "sedan": 2350.0,
+      "medium": 2550.0,
+      "large": 2750.0,
+      "port": "SEATTLE"
+    },
+    "NASHVILLE - Tennessee - IAAI": {
+      "sedan": 1575.0,
+      "medium": 1725.0,
+      "large": 1975.0,
+      "port": "SAVANNAH"
+    },
+    "NEW CASTLE - Delaware - IAAI": {
+      "sedan": 1550.0,
+      "medium": 1700.0,
+      "large": 1950.0,
+      "port": "NEWARK"
+    },
+    "NEW ORLEANS - Louisiana - IAAI": {
+      "sedan": 1800.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "HOUSTON"
+    },
+    "New Orleans and Louisiana Flood - Louisiana - IAAI": {
+      "sedan": 1600.0,
+      "medium": 1750.0,
+      "large": 2000.0,
+      "port": "SAVANNAH"
+    },
+    "NEW ORLEANS EAST - Louisiana - IAAI": {
+      "sedan": 1800.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "HOUSTON"
+    },
+    "NEWBURGH - New York - IAAI": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NEWARK"
+    },
+    "NORTH HOLLYWOOD - California - IAAI": {
+      "sedan": 2125.0,
+      "medium": 2275.0,
+      "large": 2525.0,
+      "port": "LOS ANGELES"
+    },
+    "NORTHERN NEW JERSEY - New Jersey - IAAI": {
+      "sedan": 1425.0,
+      "medium": 1575.0,
+      "large": 1825.0,
+      "port": "NEWARK"
+    },
+    "NORTHERN VIRGINIA - Virginia - IAAI": {
+      "sedan": 1475.0,
+      "medium": 1625.0,
+      "large": 1875.0,
+      "port": "NORFOLK"
+    },
+    "OKLAHOMA CITY - Oklahoma - IAAI": {
+      "sedan": 1800.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "HOUSTON"
+    },
+    "OMAHA - Nebraska - IAAI": {
+      "sedan": 1925.0,
+      "medium": 2100.0,
+      "large": 2350.0,
+      "port": "CHICAGO"
+    },
+    "Omaha South - Nebraska - IAAI": {
+      "sedan": 1925.0,
+      "medium": 2100.0,
+      "large": 2350.0,
+      "port": "CHICAGO"
+    },
+    "ORLANDO - Florida - IAAI": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "MIAMI"
+    },
+    "ORLANDO-NORTH - Florida - IAAI": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "MIAMI"
+    },
+    "PENSACOLA - Florida - IAAI": {
+      "sedan": 1650.0,
+      "medium": 1800.0,
+      "large": 2050.0,
+      "port": "MIAMI"
+    },
+    "PERMIAN BASIN - Texas - IAAI": {
+      "sedan": 1850.0,
+      "medium": 2000.0,
+      "large": 2250.0,
+      "port": "HOUSTON"
+    },
+    "PHILADELPHIA - Pennsylvania - IAAI": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "NEWARK"
+    },
+    "Philadelphia East  - Pennsylvania - IAAI": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "NEWARK"
+    },
+    "PHOENIX - Arizona - IAAI": {
+      "sedan": 2275.0,
+      "medium": 2425.0,
+      "large": 2675.0,
+      "port": "LOS ANGELES"
+    },
+    "PITTSBURGH - Pennsylvania - IAAI": {
+      "sedan": 1750.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "NEWARK"
+    },
+    "PITTSBURGH-NORTH - Pennsylvania - IAAI": {
+      "sedan": 1750.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "NEWARK"
+    },
+    "PORT MURRAY - New Jersey - IAAI": {
+      "sedan": 1475.0,
+      "medium": 1625.0,
+      "large": 1875.0,
+      "port": "NEWARK"
+    },
+    "PORTAGE - Wisconsin - IAAI": {
+      "sedan": 1775.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "CHICAGO"
+    },
+    "PORTLAND - GORHAM - Maine - IAAI": {
+      "sedan": 1775.0,
+      "medium": 1925.0,
+      "large": 2175.0,
+      "port": "NEWARK"
+    },
+    "PORTLAND - Oregon - IAAI": {
+      "sedan": 2000.0,
+      "medium": 2200.0,
+      "large": 2400.0,
+      "port": "SEATTLE"
+    },
+    "PORTLAND SOUTH - Oregon - IAAI": {
+      "sedan": 2050.0,
+      "medium": 2250.0,
+      "large": 2450.0,
+      "port": "SEATTLE"
+    },
+    "Portland West - Oregon - IAAI": {
+      "sedan": 2000.0,
+      "medium": 2200.0,
+      "large": 2400.0,
+      "port": "SEATTLE"
+    },
+    "PROVIDENCE - Rhode Island - IAAI": {
+      "sedan": 1650.0,
+      "medium": 1800.0,
+      "large": 2050.0,
+      "port": "NEWARK"
+    },
+    "Provo  - Utah - IAAI": {
+      "sedan": 2575.0,
+      "medium": 2725.0,
+      "large": 2975.0,
+      "port": "LOS ANGELES"
+    },
+    "PULASKI - Virginia - IAAI": {
+      "sedan": 1625.0,
+      "medium": 1775.0,
+      "large": 2025.0,
+      "port": "NORFOLK"
+    },
+    "RALEIGH - North Carolina - IAAI": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "NORFOLK"
+    },
+    "RENO - Nevada - IAAI": {
+      "sedan": 2475.0,
+      "medium": 2625.0,
+      "large": 2875.0,
+      "port": "LOS ANGELES"
+    },
+    "RICHMOND - Virginia - IAAI": {
+      "sedan": 1425.0,
+      "medium": 1575.0,
+      "large": 1825.0,
+      "port": "NORFOLK"
+    },
+    "ROANOKE - Virginia - IAAI": {
+      "sedan": 1600.0,
+      "medium": 1750.0,
+      "large": 2000.0,
+      "port": "NORFOLK"
+    },
+    "ROCHESTER - New York - IAAI": {
+      "sedan": 1750.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "NEWARK"
+    },
+    "ROSEDALE - Maryland - IAAI": {
+      "sedan": 1575.0,
+      "medium": 1725.0,
+      "large": 1975.0,
+      "port": "NORFOLK"
+    },
+    "SACRAMENTO - California - IAAI": {
+      "sedan": 2325.0,
+      "medium": 2475.0,
+      "large": 2725.0,
+      "port": "LOS ANGELES"
+    },
+    "SALT LAKE CITY - Utah - IAAI": {
+      "sedan": 2475.0,
+      "medium": 2625.0,
+      "large": 2875.0,
+      "port": "LOS ANGELES"
+    },
+    "SAN ANTONIO - Texas - IAAI": {
+      "sedan": 1700.0,
+      "medium": 1850.0,
+      "large": 2100.0,
+      "port": "HOUSTON"
+    },
+    "SAN ANTONIO-SOUTH - Texas - IAAI": {
+      "sedan": 1700.0,
+      "medium": 1850.0,
+      "large": 2100.0,
+      "port": "HOUSTON"
+    },
+    "SAN BERNARDINO - California - IAAI": {
+      "sedan": 2175.0,
+      "medium": 2325.0,
+      "large": 2575.0,
+      "port": "LOS ANGELES"
+    },
+    "SAN DIEGO - California - IAAI": {
+      "sedan": 2225.0,
+      "medium": 2375.0,
+      "large": 2625.0,
+      "port": "LOS ANGELES"
+    },
+    "SANTA CLARITA - California - IAAI": {
+      "sedan": 2225.0,
+      "medium": 2375.0,
+      "large": 2625.0,
+      "port": "LOS ANGELES"
+    },
+    "SAVANNAH - Georgia - IAAI": {
+      "sedan": 1300.0,
+      "medium": 1450.0,
+      "large": 1700.0,
+      "port": "SAVANNAH"
+    },
+    "Sayreville - New Jersey - IAAI": {
+      "sedan": 1450.0,
+      "medium": 1600.0,
+      "large": 1850.0,
+      "port": "NEWARK"
+    },
+    "SCRANTON - Pennsylvania - IAAI": {
+      "sedan": 1550.0,
+      "medium": 1700.0,
+      "large": 1950.0,
+      "port": "NEWARK"
+    },
+    "SEATTLE - Washington - IAAI": {
+      "sedan": 1925.0,
+      "medium": 2125.0,
+      "large": 2325.0,
+      "port": "SEATTLE"
+    },
+    "SHADY SPRING - West Virginia - IAAI": {
+      "sedan": 1850.0,
+      "medium": 2000.0,
+      "large": 2250.0,
+      "port": "NORFOLK"
+    },
+    "SHREVEPORT - Louisiana - IAAI": {
+      "sedan": 1715.0,
+      "medium": 1865.0,
+      "large": 2115.0,
+      "port": "HOUSTON"
+    },
+    "SIOUX FALLS - South Dakota - IAAI": {
+      "sedan": 2125.0,
+      "medium": 2300.0,
+      "large": 2550.0,
+      "port": "CHICAGO"
+    },
+    "SOUTH BEND - Indiana - IAAI": {
+      "sedan": 1725.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "CHICAGO"
+    },
+    "SOUTHERN NEW JERSEY - New Jersey - IAAI": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "NEWARK"
+    },
+    "SPOKANE - Washington - IAAI": {
+      "sedan": 2100.0,
+      "medium": 2300.0,
+      "large": 2500.0,
+      "port": "SEATTLE"
+    },
+    "SPRINGFIELD - Missouri - IAAI": {
+      "sedan": 1800.0,
+      "medium": 1950.0,
+      "large": 2200.0,
+      "port": "SAVANNAH"
+    },
+    "ST. CLOUD  - Minnesota - IAAI": {
+      "sedan": 1975.0,
+      "medium": 2150.0,
+      "large": 2400.0,
+      "port": "CHICAGO"
+    },
+    "ST. LOUIS - Illinois - IAAI": {
+      "sedan": 1750.0,
+      "medium": 1900.0,
+      "large": 2150.0,
+      "port": "SAVANNAH"
+    },
+    "STOCKTON - California - IAAI": {
+      "sedan": 2400.0,
+      "medium": 2550.0,
+      "large": 2800.0,
+      "port": "LOS ANGELES"
+    },
+    "Suffolk - Virginia - IAAI": {
+      "sedan": 1375.0,
+      "medium": 1525.0,
+      "large": 1775.0,
+      "port": "NORFOLK"
+    },
+    "SYRACUSE - New York - IAAI": {
+      "sedan": 1625.0,
+      "medium": 1775.0,
+      "large": 2025.0,
+      "port": "NEWARK"
+    },
+    "TAMPA - Florida - IAAI": {
+      "sedan": 1500.0,
+      "medium": 1650.0,
+      "large": 1900.0,
+      "port": "MIAMI"
+    },
+    "Tampa North - Florida - IAAI": {
+      "sedan": 1525.0,
+      "medium": 1675.0,
+      "large": 1925.0,
+      "port": "MIAMI"
+    },
+    "TAUNTON - Massachusetts - IAAI": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "NEWARK"
+    },
+    "Templeton - Massachusetts - IAAI": {
+      "sedan": 1675.0,
+      "medium": 1825.0,
+      "large": 2075.0,
+      "port": "NEWARK"
+    },
+    "TIDEWATER - Virginia - IAAI": {
+      "sedan": 1375.0,
+      "medium": 1525.0,
+      "large": 1775.0,
+      "port": "NORFOLK"
+    },
+    "TIFTON - Georgia - IAAI": {
+      "sedan": 1450.0,
+      "medium": 1600.0,
+      "large": 1850.0,
+      "port": "SAVANNAH"
+    },
+    "TUCSON - Arizona - IAAI": {
+      "sedan": 2325.0,
+      "medium": 2475.0,
+      "large": 2725.0,
+      "port": "LOS ANGELES"
+    },
+    "TULSA - Oklahoma - IAAI": {
+      "sedan": 1875.0,
+      "medium": 2025.0,
+      "large": 2275.0,
+      "port": "HOUSTON"
+    },
+    "WEST PALM BEACH - Florida - IAAI": {
+      "sedan": 1430.0,
+      "medium": 1580.0,
+      "large": 1830.0,
+      "port": "MIAMI"
+    },
+    "WICHITA - Kansas - IAAI": {
+      "sedan": 1950.0,
+      "medium": 2100.0,
+      "large": 2350.0,
+      "port": "HOUSTON"
+    },
+    "WILMINGTON - North Carolina - IAAI": {
+      "sedan": 1600.0,
+      "medium": 1750.0,
+      "large": 2000.0,
+      "port": "NORFOLK"
+    },
+    "YORK SPRINGS - Pennsylvania - IAAI": {
+      "sedan": 1575.0,
+      "medium": 1725.0,
+      "large": 1975.0,
+      "port": "NEWARK"
+    }
+  }
+};
+const webAppUrl = "https://script.google.com/a/macros/tlv-auto.com/s/AKfycbxxv3BGc-sSGhFt27ODj14KS59GCrtdxIGBxqKYeRCHXN6_oZRcSulotyFtBM2FCL2U/exec";
+
+function updateLocations() {
+  const auction = document.getElementById('auction').value;
+  const locationSelect = document.getElementById('location');
+  locationSelect.innerHTML = '<option value="">Выберите стоянку</option>';
+  if (logistics[auction]) {
+    Object.keys(logistics[auction]).forEach(loc => {
+      const opt = document.createElement('option');
+      opt.value = loc;
+      opt.textContent = loc;
+      locationSelect.appendChild(opt);
+    });
+  }
+}
+
+function generateInvoice() {
+  const auction = document.getElementById('auction').value;
+  const location = document.getElementById('location').value;
+  const type = document.getElementById('type').value;
+  const vin = document.getElementById('vin').value;
+  const carPrice = parseFloat(document.getElementById('carPrice').value) || 0;
+  const deposit = parseFloat(document.getElementById('deposit').value) || 0;
+  
+  const isHybrid = document.getElementById('hybridSwitch').value;
+  const hybrid = isHybrid === 'yes' ? 150 : 0;
+    
+  
+  const kyrgyzSwitch = document.getElementById('kyrgyzSwitch').value;
+  const kyrgyz = (kyrgyzSwitch === 'yes')
+    ? (type === 'large' ? 2000 : 1500)
+    : 0;
+    
+
+  if (!auction || !location || !type) {
+    alert("Пожалуйста выберите аукцион, стоянку и тип машины!");
+    return;
+  }
+
+  const entry = logistics[auction][location];
+  const delivery = entry[type];
+  const service = 500;
+  const total = carPrice + delivery + service + hybrid + kyrgyz;
+  const toPay = total - deposit;
+  const port = entry.port;
+  const date = new Date().toLocaleDateString('ru-RU');
+  const orderId = Math.floor(Math.random() * 9000) + 1000;
+
+  document.getElementById('invoice').innerHTML = `
+    <h3>ИНВОЙС TLV AUTO</h3>
+    <p><strong>Номер заказа:</strong> #${orderId}</p>
+    <p><strong>Дата:</strong> ${date}</p>
+    <p><strong>Аукцион:</strong> ${auction}</p>
+    <p><strong>Стоянка:</strong> ${location}</p>
+    <p><strong>Порт отправки:</strong> ${port}</p>
+    <p><strong>Тип машины:</strong> ${type}</p>
+    <p><strong>VIN:</strong> ${vin}</p>
+    <p><strong>Гибрид/Электро:</strong> ${isHybrid === "yes" ? "Да (+150$)" : "Нет"}</p>
+    <hr>
+    <p>Стоимость авто: $${carPrice}</p>
+    <p>Доставка: $${delivery}</p>
+    <p>Услуги компании: 500$</p>
+    <p>Доплата за гибрид: $${hybrid}</p>
+    <p>Поти-Бишкек: $${kyrgyz}</p>
+    <p><strong>ИТОГО:</strong> $${total}</p>
+    <p>Депозит: $${deposit}</p>
+    <h3>К оплате: $${toPay}</h3>
+    <p><em>Если сумма не будет оплачена в течение 2 дней, будет начисляться штраф 30$ за каждый следующий день.</em></p>
+  `;
+
+  fetch(webAppUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      isHybrid,
+      orderId, vin, carName: "", auction, location, type,
+      carPrice, delivery, service, hybrid, kyrgyz, deposit, toPay
+    })
+  })
+  .then(response => console.log("Успешно сохранено в Google Sheets"))
+  .catch(error => console.error("Ошибка отправки:", error));
+}
+</script>
+
+</body>
+</html>
